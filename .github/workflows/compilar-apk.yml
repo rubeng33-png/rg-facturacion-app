@@ -8,10 +8,12 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -49,3 +51,13 @@ jobs:
         with:
           name: rg-facturacion-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publicar en Releases (descarga directa desde el celular)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk RG-Facturacion.apk
+          TAG="v1.0.${{ github.run_number }}"
+          gh release create "$TAG" RG-Facturacion.apk \
+            --title "RG Facturación $TAG" \
+            --notes "APK compilado automáticamente desde el commit ${{ github.sha }}"
