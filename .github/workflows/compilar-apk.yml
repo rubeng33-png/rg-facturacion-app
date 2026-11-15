@@ -1,0 +1,51 @@
+name: Compilar APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generar la carpeta android (si no está en el repo)
+        run: |
+          if [ ! -d android ]; then
+            flutter create --project-name rg_facturacion --org py.rgservice --platforms android .
+          fi
+
+      - name: Permiso de internet, HTTP en red local y nombre de la app
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.INTERNET' "$M" || \
+            sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$M"
+          grep -q 'usesCleartextTraffic' "$M" || \
+            sed -i 's#<application#<application android:usesCleartextTraffic="true"#' "$M"
+          sed -i 's#android:label="rg_facturacion"#android:label="RG Facturación"#' "$M"
+          cat "$M"
+
+      - run: flutter pub get
+
+      - name: Pruebas
+        run: flutter test test/formato_test.dart
+
+      - name: Compilar
+        run: flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rg-facturacion-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
